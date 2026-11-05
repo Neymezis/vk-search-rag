@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Поиск по постам сообщества «Леонардо Дайвинчик»</title>
+<style>
+  :root {
+    --parchment: #f2e8d5;
+    --parchment-dark: #e6d8b8;
+    --ink: #3b2f1e;
+    --ink-light: #6b5c42;
+    --border: #b8a679;
+    --accent: #7a5c2e;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--parchment);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(184,166,121,0.15), transparent 40%),
+      radial-gradient(circle at 80% 60%, rgba(184,166,121,0.12), transparent 45%);
+    color: var(--ink);
+    font-family: "Georgia", "Iowan Old Style", "Palatino Linotype", serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 20px;
+  }
+
+  h1 {
+    font-weight: 400;
+    font-size: 28px;
+    letter-spacing: 0.5px;
+    margin: 0 0 6px 0;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 14px;
+    width: 100%;
+    max-width: 720px;
+    text-align: center;
+  }
+
+
+  .search-panel {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    gap: 10px;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 16px;
+    font-family: inherit;
+    background: #fbf6e9;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    outline: none;
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+
+  button {
+    padding: 12px 22px;
+    font-size: 15px;
+    font-family: inherit;
+    background: var(--accent);
+    color: var(--parchment);
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    letter-spacing: 0.3px;
+  }
+
+  button:hover { background: #63481f; }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  .mode-toggle {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    gap: 22px;
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--ink-light);
+  }
+
+  .mode-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .status {
+    max-width: 720px;
+    width: 100%;
+    margin-top: 22px;
+    color: var(--ink-light);
+    font-size: 14px;
+    min-height: 20px;
+  }
+
+  .answer-box {
+    max-width: 720px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 18px 20px;
+    background: #fbf6e9;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    line-height: 1.6;
+    font-size: 15px;
+    display: none;
+  }
+
+  .results {
+    max-width: 720px;
+    width: 100%;
+    margin-top: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .result-item {
+    padding: 16px 20px;
+    background: #fbf6e9;
+    border: 1px solid var(--border);
+  }
+
+  .result-text {
+    line-height: 1.55;
+    font-size: 15px;
+    margin: 0 0 10px 0;
+  }
+
+  .result-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ink-light);
+    border-top: 1px dashed var(--border);
+    padding-top: 8px;
+  }
+
+  .result-meta a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid var(--accent);
+  }
+
+  .result-meta a:hover { color: #4a3618; }
+
+  .score {
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<h1>Поиск по постам сообщества 
+<br>«Леонардо Дайвинчик»</h1>
+<br>
+<br>
+<br>
+<br>
+<br>
+<div class="search-panel">
+  <input type="text" id="query" placeholder="Введите запрос..." autofocus>
+  <button id="searchBtn">Найти</button>
+</div>
+
+<div class="mode-toggle">
+  <label><input type="radio" name="mode" value="search" checked> Список ссылок</label>
+  <label><input type="radio" name="mode" value="ask"> Ответ с суммаризацией</label>
+</div>
+
+<div class="status" id="status"></div>
+<div class="answer-box" id="answerBox"></div>
+<div class="results" id="results"></div>
+
+<script>
+  const API_BASE = window.location.origin;
+
+  const input = document.getElementById("query");
+  const btn = document.getElementById("searchBtn");
+  const statusEl = document.getElementById("status");
+  const resultsEl = document.getElementById("results");
+  const answerBox = document.getElementById("answerBox");
+
+  function currentMode() {
+    return document.querySelector('input[name="mode"]:checked').value;
+  }
+
+  function formatDate(unixSeconds) {
+    if (!unixSeconds) return "";
+    const d = new Date(unixSeconds * 1000);
+    return d.toLocaleDateString("ru-RU");
+  }
+
+  function renderResults(items) {
+    resultsEl.innerHTML = "";
+    items.forEach(item => {
+      const div = document.createElement("div");
+      div.className = "result-item";
+      div.innerHTML = `
+        <p class="result-text">${item.text}</p>
+        <div class="result-meta">
+          <span>${formatDate(item.date)} · лайков: ${item.likes ?? 0} · score <span class="score">${item.score.toFixed(3)}</span></span>
+          <a href="${item.url}" target="_blank" rel="noopener">Открыть пост</a>
+        </div>
+      `;
+      resultsEl.appendChild(div);
+    });
+  }
+
+  async function runSearch() {
+    const query = input.value.trim();
+    if (!query) return;
+
+    btn.disabled = true;
+    statusEl.textContent = "Идёт поиск...";
+    answerBox.style.display = "none";
+    resultsEl.innerHTML = "";
+
+    try {
+      if (currentMode() === "search") {
+        const resp = await fetch(`${API_BASE}/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, top_n: 10 })
+        });
+        if (!resp.ok) throw new Error("Сервис поиска недоступен");
+        const data = await resp.json();
+        statusEl.textContent = `Найдено результатов: ${data.results.length}`;
+        renderResults(data.results);
+      } else {
+        const resp = await fetch(`${API_BASE}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, context_docs: 5 })
+        });
+        if (!resp.ok) throw new Error("Сервис ответа недоступен");
+        const data = await resp.json();
+        statusEl.textContent = "Ответ сформирован на основе найденных документов";
+        answerBox.style.display = "block";
+        answerBox.textContent = data.answer;
+        renderResults(data.sources);
+      }
+    } catch (err) {
+      statusEl.textContent = "Ошибка: " + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener("click", runSearch);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") runSearch(); });
+</script>
+
+</body>
+</html>
